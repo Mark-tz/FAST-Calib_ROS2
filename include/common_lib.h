@@ -14,8 +14,6 @@ which is included as part of this source code package.
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/common/transforms.h>
-#include <pcl_ros/point_cloud.h>
-#include <pcl_ros/filters/passthrough.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/features/boundary.h>
@@ -26,7 +24,11 @@ which is included as part of this source code package.
 #include <pcl/registration/transformation_estimation_svd.h>
 #include <cmath>
 
-#include <tf/tf.h>
+// ROS2 includes
+#include <rclcpp/rclcpp.hpp>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include "color.h"
 
 using namespace std;
@@ -88,34 +90,68 @@ struct Params {
 };
 
 // 读取参数
-Params loadParameters(ros::NodeHandle &nh) {
-  Params params;
-  nh.param("fx", params.fx, 1215.31801774424);
-  nh.param("fy", params.fy, 1214.72961288138);
-  nh.param("cx", params.cx, 1047.86571859677);
-  nh.param("cy", params.cy, 745.068353101898);
-  nh.param("k1", params.k1, -0.33574781188503);
-  nh.param("k2", params.k2, 0.10996870793601);
-  nh.param("p1", params.p1, 0.000157303079833973);
-  nh.param("p2", params.p2, 0.000544930726278493);
-  nh.param("marker_size", params.marker_size, 0.2);
-  nh.param("delta_width_qr_center", params.delta_width_qr_center, 0.55);
-  nh.param("delta_height_qr_center", params.delta_height_qr_center, 0.35);
-  nh.param("delta_width_circles", params.delta_width_circles, 0.5);
-  nh.param("delta_height_circles", params.delta_height_circles, 0.4);
-  nh.param("min_detected_markers", params.min_detected_markers, 3);
-  nh.param("circle_radius", params.circle_radius, 0.12);
-  nh.param("image_path", params.image_path, string("/home/chunran/calib_ws/src/fast_calib/data/image.png"));
-  nh.param("bag_path", params.bag_path, string("/home/chunran/calib_ws/src/fast_calib/data/input.bag"));
-  nh.param("lidar_topic", params.lidar_topic, string("/livox/lidar"));
-  nh.param("output_path", params.output_path, string("/home/chunran/calib_ws/src/fast_calib/output"));
-  nh.param("x_min", params.x_min, 1.5);
-  nh.param("x_max", params.x_max, 3.0);
-  nh.param("y_min", params.y_min, -1.5);
-  nh.param("y_max", params.y_max, 2.0);
-  nh.param("z_min", params.z_min, -0.5);
-  nh.param("z_max", params.z_max, 2.0);
-  return params;
+// Updated parameter loading function for ROS2
+Params loadParameters(std::shared_ptr<rclcpp::Node> node) {
+    Params params;
+    
+    // Declare and get parameters
+    node->declare_parameter("fx", 2478.48702288166);
+    node->declare_parameter("fy", 2478.58544825456);
+    node->declare_parameter("cx", 1230.99707596681);
+    node->declare_parameter("cy", 1025.66149498072);
+    node->declare_parameter("k1", -0.0493178189623200);
+    node->declare_parameter("k2", 0.147394487986097);
+    node->declare_parameter("p1", -0.00127118592043482);
+    node->declare_parameter("p2", -0.00200379689523022);
+    
+    params.fx = node->get_parameter("fx").as_double();
+    params.fy = node->get_parameter("fy").as_double();
+    params.cx = node->get_parameter("cx").as_double();
+    params.cy = node->get_parameter("cy").as_double();
+    params.k1 = node->get_parameter("k1").as_double();
+    params.k2 = node->get_parameter("k2").as_double();
+    params.p1 = node->get_parameter("p1").as_double();
+    params.p2 = node->get_parameter("p2").as_double();
+    
+    node->declare_parameter("marker_size", 0.20);
+    node->declare_parameter("delta_width_qr_center", 0.55);
+    node->declare_parameter("delta_height_qr_center", 0.35);
+    node->declare_parameter("delta_width_circles", 0.5);
+    node->declare_parameter("delta_height_circles", 0.4);
+    node->declare_parameter("circle_radius", 0.12);
+    
+    params.marker_size = node->get_parameter("marker_size").as_double();
+    params.delta_width_qr_center = node->get_parameter("delta_width_qr_center").as_double();
+    params.delta_height_qr_center = node->get_parameter("delta_height_qr_center").as_double();
+    params.delta_width_circles = node->get_parameter("delta_width_circles").as_double();
+    params.delta_height_circles = node->get_parameter("delta_height_circles").as_double();
+    params.circle_radius = node->get_parameter("circle_radius").as_double();
+    
+    node->declare_parameter("x_min", 2.0);
+    node->declare_parameter("x_max", 5.0);
+    node->declare_parameter("y_min", -1.0);
+    node->declare_parameter("y_max", 4.0);
+    node->declare_parameter("z_min", 0.0);
+    node->declare_parameter("z_max", 2.0);
+    
+    params.x_min = node->get_parameter("x_min").as_double();
+    params.x_max = node->get_parameter("x_max").as_double();
+    params.y_min = node->get_parameter("y_min").as_double();
+    params.y_max = node->get_parameter("y_max").as_double();
+    params.z_min = node->get_parameter("z_min").as_double();
+    params.z_max = node->get_parameter("z_max").as_double();
+    
+    node->declare_parameter("lidar_topic", std::string("/livox/lidar"));
+    node->declare_parameter("bag_path", std::string(""));
+    node->declare_parameter("image_path", std::string(""));
+    node->declare_parameter("output_path", std::string(""));
+    
+    params.lidar_topic = node->get_parameter("lidar_topic").as_string();
+    params.bag_path = node->get_parameter("bag_path").as_string();
+    params.image_path = node->get_parameter("image_path").as_string();
+    params.output_path = node->get_parameter("output_path").as_string();
+    
+    return params;
 }
 
 double computeRMSE(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud1, 

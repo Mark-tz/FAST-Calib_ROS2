@@ -1,5 +1,5 @@
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <Eigen/Dense>
 #include <fstream>
 #include <sstream>
@@ -109,10 +109,12 @@ static bool parseCentersLine(const std::string& line, std::vector<Eigen::Vector3
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "multi_fast_calib");
-    ros::NodeHandle nh;
-    Params params = loadParameters(nh);
-
+    rclcpp::init(argc, argv);
+    auto node = rclcpp::Node::make_shared("multi_scene_calibration");
+    
+    // 读取参数
+    Params params = loadParameters(node);
+    
     if (params.output_path.back() != '/') params.output_path += '/';
     std::string midtxt_path = params.output_path + "circle_center_record.txt";
 
@@ -123,7 +125,7 @@ int main(int argc, char** argv)
     std::ifstream fin(midtxt_path);
     if (!fin.is_open())
     {
-        ROS_ERROR("Failed to open txt file: %s", midtxt_path.c_str());
+        RCLCPP_ERROR(node->get_logger(),"Failed to open txt file: %s", midtxt_path.c_str());
         return 1;
     }
     std::vector<std::string> lines;
@@ -133,7 +135,7 @@ int main(int argc, char** argv)
     }
     fin.close();
     if (lines.size() < 9) {
-        ROS_ERROR("File has fewer than 9 lines, cannot get 3 blocks.");
+        RCLCPP_ERROR(node->get_logger(),"File has fewer than 9 lines, cannot get 3 blocks.");
         return 1;
     }
 
@@ -160,7 +162,7 @@ int main(int argc, char** argv)
     }
     if (blocks.size() < 3) 
     {
-        ROS_ERROR("Parsed blocks < 3 (got %zu).", blocks.size());
+        RCLCPP_ERROR(node->get_logger(),"Parsed blocks < 3 (got %zu).", blocks.size());
         return 1;
     }
 
@@ -177,7 +179,7 @@ int main(int argc, char** argv)
         }
     }
     if (L.size() != 12 || C.size() != 12) {
-        ROS_ERROR("Merged pairs not equal to 12 (L=%zu, C=%zu).", L.size(), C.size());
+        RCLCPP_ERROR(node->get_logger(),"Merged pairs not equal to 12 (L=%zu, C=%zu).", L.size(), C.size());
         return 1;
     }
 
@@ -193,7 +195,7 @@ int main(int argc, char** argv)
     // 一次性求解
     auto res = SolveRigidTransformWeighted(L, C, nullptr);
     if (!res.ok) {
-        ROS_ERROR("SolveRigidTransformWeighted failed.");
+        RCLCPP_ERROR(node->get_logger(),"SolveRigidTransformWeighted failed.");
         return 1;
     }
 
@@ -222,8 +224,9 @@ int main(int argc, char** argv)
         fout.close();
         std::cout << BOLDYELLOW << "[Result] Multi-scene calibration results saved to " << BOLDWHITE << multi_output_path << RESET << std::endl;
     } else {
-        ROS_WARN("Failed to write out file: %s", multi_output_path.c_str());
+        RCLCPP_WARN(node->get_logger(), "Failed to write out file: %s", multi_output_path.c_str());
     }
 
+    rclcpp::shutdown();
     return 0;
 }
