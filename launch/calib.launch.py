@@ -27,7 +27,7 @@ def generate_launch_description():
     rviz_config = PathJoinSubstitution([
         pkg_share,
         'rviz_cfg',
-        'fast_livo2.rviz'
+        'fast_livo2_ros2.rviz'
     ])
     
     # Fast calib node
