@@ -19,7 +19,6 @@ which is included as part of this source code package.
 #include <rosbag2_cpp/readers/sequential_reader.hpp>
 #include <rosbag2_storage/storage_options.hpp>
 #include <rosbag2_cpp/converter_interfaces/serialization_format_converter.hpp>
-// 添加序列化头文件
 #include <rclcpp/serialization.hpp>
 
 using namespace std;
@@ -62,6 +61,16 @@ private:
         try {
             reader.open(storage_options, converter_options);
             
+            // 获取topic信息来判断消息类型
+            auto topics_and_types = reader.get_all_topics_and_types();
+            std::string message_type;
+            for (const auto& topic_info : topics_and_types) {
+                if (topic_info.name == lidar_topic) {
+                    message_type = topic_info.type;
+                    break;
+                }
+            }
+            
             while (reader.has_next()) {
                 auto bag_message = reader.read_next();
                 
@@ -69,8 +78,8 @@ private:
                     continue;
                 }
                 
-                // Handle different message types
-                if (bag_message->topic_name.find("livox") != std::string::npos) {
+                // 根据实际消息类型处理
+                if (message_type == "livox_ros_driver/msg/CustomMsg") {
                     // Handle Livox custom message for ROS2
                     auto livox_msg = std::make_shared<livox_ros_driver::msg::CustomMsg>();
                     rclcpp::Serialization<livox_ros_driver::msg::CustomMsg> serialization;
@@ -85,7 +94,7 @@ private:
                         p.z = livox_msg->points[i].z;
                         cloud_input_->points.push_back(p);
                     }
-                } else {
+                } else if (message_type == "sensor_msgs/msg/PointCloud2") {
                     // Handle standard PointCloud2 message
                     auto pcl_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
                     rclcpp::Serialization<sensor_msgs::msg::PointCloud2> serialization;
