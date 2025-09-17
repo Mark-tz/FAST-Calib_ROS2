@@ -74,16 +74,16 @@ fast_calib:
     # z_max: 2.0
     # multi_scene_33
     x_min: 2.0
-    x_max: 5.0
+    x_max: 3.5
     y_min: -1.0
-    y_max: 4.0
-    z_min: 0.0
+    y_max: 1.0
+    z_min: -1.0
     z_max: 2.0
 
     # Input
     lidar_topic: "/livox/lidar" # /ouster/points /livox/lidar
-    bag_path: "/mnt/wsl/share/brain/FAST-Calib_ROS2/calib_data/avia_multi_scene/33.bag"
-    image_path: "/mnt/wsl/share/brain/FAST-Calib_ROS2/calib_data/avia_multi_scene/33.jpg"
+    bag_path: "/home/turingzero/ros_ws/ws/src/FAST-Calib_ROS2/avia/11"
+    image_path: "/home/turingzero/ros_ws/ws/src/FAST-Calib_ROS2/avia/11.png"
 
     # Output
-    output_path: "/mnt/wsl/share/brain/FAST-Calib_ROS2/output"
+    output_path: "/home/turingzero/ros_ws/ws/src/FAST-Calib_ROS2/avia/output"

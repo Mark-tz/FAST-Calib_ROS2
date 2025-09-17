@@ -345,8 +345,19 @@ void sortPatternCenters(pcl::PointCloud<pcl::PointXYZ>::Ptr pc,
                         pcl::PointCloud<pcl::PointXYZ>::Ptr v,
                         const std::string& axis_mode = "camera") 
 {
+  std::cout << BOLDYELLOW << "[sortPatternCenters] Input: " << pc->size() << " " << axis_mode << " center points" << RESET << std::endl;
+  
   if (pc->size() != 4) {
     std::cerr << BOLDRED << "[sortPatternCenters] Number of " << axis_mode << " center points to be sorted is not 4." << RESET << std::endl;
+    
+    // 如果不是4个点，至少输出现有的点信息用于调试
+    for (size_t i = 0; i < pc->size(); ++i) {
+      std::cout << BOLDCYAN << "[sortPatternCenters] " << axis_mode << " center " << i << ": (" 
+                << pc->points[i].x << ", " << pc->points[i].y << ", " << pc->points[i].z << ")" << RESET << std::endl;
+    }
+    
+    // 清空输出点云
+    v->clear();
     return;
   }
 

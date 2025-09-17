@@ -64,19 +64,35 @@ private:
             // 获取topic信息来判断消息类型
             auto topics_and_types = reader.get_all_topics_and_types();
             std::string message_type;
+            
+            RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "Available topics in bag:");
             for (const auto& topic_info : topics_and_types) {
+                RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "  - %s (%s)", 
+                           topic_info.name.c_str(), topic_info.type.c_str());
                 if (topic_info.name == lidar_topic) {
                     message_type = topic_info.type;
-                    break;
                 }
             }
             
+            if (message_type.empty()) {
+                RCLCPP_ERROR(rclcpp::get_logger("data_preprocess"), "Topic %s not found in bag!", lidar_topic.c_str());
+                return;
+            }
+            
+            RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "Processing topic: %s (type: %s)", 
+                       lidar_topic.c_str(), message_type.c_str());
+            
+            int message_count = 0;
             while (reader.has_next()) {
                 auto bag_message = reader.read_next();
                 
                 if (bag_message->topic_name != lidar_topic) {
                     continue;
                 }
+                
+                message_count++;
+                RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "Processing message %d from topic %s", 
+                           message_count, bag_message->topic_name.c_str());
                 
                 // 根据实际消息类型处理
                 if (message_type == "livox_ros_driver/msg/CustomMsg") {
@@ -86,7 +102,9 @@ private:
                     rclcpp::SerializedMessage serialized_msg(*bag_message->serialized_data);
                     serialization.deserialize_message(&serialized_msg, livox_msg.get());
                     
-                    cloud_input_->reserve(livox_msg->point_num);
+                    RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "Livox message contains %d points", livox_msg->point_num);
+                    
+                    cloud_input_->reserve(cloud_input_->size() + livox_msg->point_num);
                     for (uint i = 0; i < livox_msg->point_num; ++i) {
                         pcl::PointXYZ p;
                         p.x = livox_msg->points[i].x;
@@ -101,13 +119,26 @@ private:
                     rclcpp::SerializedMessage serialized_msg(*bag_message->serialized_data);
                     serialization.deserialize_message(&serialized_msg, pcl_msg.get());
                     
+                    RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "PointCloud2 message: width=%d, height=%d", 
+                               pcl_msg->width, pcl_msg->height);
+                    
                     pcl::PointCloud<pcl::PointXYZ> temp_cloud;
                     pcl::fromROSMsg(*pcl_msg, temp_cloud);
                     *cloud_input_ += temp_cloud;
+                    
+                    RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "Added %ld points, total: %ld", 
+                               temp_cloud.size(), cloud_input_->size());
                 }
             }
             
-            RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "Loaded %ld points from the rosbag.", cloud_input_->size());
+            RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "Loaded %ld points from %d messages in the rosbag.", 
+                       cloud_input_->size(), message_count);
+                       
+            // 保存原始点云用于调试
+            std::string debug_path = "debug_original_cloud.pcd";
+            pcl::io::savePCDFileASCII(debug_path, *cloud_input_);
+            RCLCPP_INFO(rclcpp::get_logger("data_preprocess"), "Saved original point cloud to: %s", debug_path.c_str());
+            
         } catch (const std::exception& e) {
             RCLCPP_ERROR(rclcpp::get_logger("data_preprocess"), "Error reading bag file: %s", e.what());
         }
